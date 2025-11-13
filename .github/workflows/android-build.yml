@@ -1,4 +1,4 @@
-name: Android CI — LSPosed Module Build
+name: Android CI — LSPosed Build
 
 on:
   push:
@@ -19,33 +19,40 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Android SDK
+    - name: Install Android SDK + Tools
+      shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y wget unzip
+
+        # Create SDK root
         mkdir -p $HOME/android-sdk
         cd $HOME/android-sdk
+
+        # Download latest cmdline-tools
         wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip tools.zip -d cmdline-tools
+        unzip -q tools.zip -d cmdline-tools
         mv cmdline-tools/cmdline-tools cmdline-tools/latest
+
         export ANDROID_HOME=$HOME/android-sdk
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+
         yes | sdkmanager --licenses
         sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-    - name: Install Gradle 8.4
+    - name: Setup Gradle 8.4
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.4
 
-    - name: Build module
+    - name: Build Debug APK
       env:
         ANDROID_HOME: ${{ runner.home }}/android-sdk
       run: |
         export PATH=$ANDROID_HOME/platform-tools:$PATH
-        gradle assembleDebug --no-daemon --stacktrace
+        gradle assembleDebug --stacktrace --no-daemon
 
-    - name: Upload APK
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: zumer-debug-apk
