@@ -1,4 +1,4 @@
-name: Android CI — LSPosed Build
+name: Android CI — robust SDK install + Gradle 8.4
 
 on:
   push:
@@ -19,37 +19,50 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Android SDK + Tools
+    - name: Download and install Android command-line tools
       shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y wget unzip
-
-        # Create SDK root
-        mkdir -p $HOME/android-sdk
+        mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk
-
-        # Download latest cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-        unzip -q tools.zip -d cmdline-tools
+        # latest commandline tools (explicit release build)
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
+        unzip -q cmdline.zip -d cmdline-tools
         mv cmdline-tools/cmdline-tools cmdline-tools/latest
-
-        export ANDROID_HOME=$HOME/android-sdk
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-
+        rm cmdline.zip || true
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
         yes | sdkmanager --licenses
-        sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-    - name: Setup Gradle 8.4
+        # Install required platforms, build-tools and repositories
+        sdkmanager --install "platform-tools" \
+                       "platforms;android-34" \
+                       "platforms;android-33" \
+                       "build-tools;34.0.0" \
+                       "build-tools;33.0.2" \
+                       "extras;google;m2repository" \
+                       "extras;android;m2repository" || true
+
+        # update and list to make results visible in logs
+        sdkmanager --update || true
+        sdkmanager --list
+
+    - name: Install Gradle 8.4
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.4
 
+    - name: Show versions
+      run: |
+        java -version
+        gradle --version
+
     - name: Build Debug APK
       env:
-        ANDROID_HOME: ${{ runner.home }}/android-sdk
+        ANDROID_SDK_ROOT: ${{ runner.home }}/android-sdk
       run: |
-        export PATH=$ANDROID_HOME/platform-tools:$PATH
+        export PATH=$ANDROID_SDK_ROOT/platform-tools:$PATH
         gradle assembleDebug --stacktrace --no-daemon
 
     - name: Upload artifact
