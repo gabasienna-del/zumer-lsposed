@@ -1,4 +1,4 @@
-name: Android CI - assembleDebug
+name: Android CI - assembleDebug (no wrapper required)
 
 on:
   push:
@@ -8,9 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    env:
-      JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF8"
 
     steps:
     - name: Checkout
@@ -43,12 +40,11 @@ jobs:
         java -version
         $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --list
 
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew || true
-
-    - name: Build debug APK
-      run: ./gradlew assembleDebug --no-daemon
-      working-directory: ${{ github.workspace }}
+    - name: Use Gradle Action to build (no gradle-wrapper.jar required)
+      uses: gradle/gradle-build-action@v2
+      with:
+        arguments: assembleDebug
+        java-version: '17'
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
